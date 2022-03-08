@@ -1,0 +1,423 @@
+---
+title: "Data Visualisation: Assignment 3 - Visualising Irish Covid figures"
+author: "Submitted By: Kalyani Prashant Kawale | Student ID: 21237189"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Data Setup
+
+```{r echo=TRUE, warning=FALSE, message=FALSE}
+# Loading libraries
+library(sf)
+library(ggplot2)
+library(plyr)
+library(dplyr)
+library(gridExtra)
+library(colorspace)
+library(e1071)
+library(lubridate)
+```
+
+The data for Irish Covid figures given in *CovidCountyStatisticsIreland_v2.shp* file was loaded and the daily and cumulative covid case numbers were normalized per 100,000 of the population for each county as follows,
+
+```{r Loading File, echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
+# Reading .shp file
+IRE_Covid_Cases <- 
+  st_read('./CovidCountyStatisticsIreland_v2/CovidCountyStatisticsIreland_v2.shp')
+# Adding Normalized Columns to Given Data Set using dplyr mutate and 
+# storing in IRE_Cases Data Frame
+IRE_Cases <- IRE_Covid_Cases %>% 
+  # Normalizing daily number of cases per 100,000 of population given in DailyCCase
+  # and saving the data in DailyCCase_Normalized column
+  mutate(DailyCCase_Normalized = DailyCCase / Population * 100000) %>%
+  # Normalizing cumulative number of cases per 100,000 of population given in ConfirmedC
+  # and saving the data in ConfirmedC_Normalized column
+  mutate(ConfirmedC_Normalized = ConfirmedC / Population * 100000)
+```
+
+# Section 1: 
+
+## Task: 
+To create a visualization that allows the reader to accurately read and compare the number of cases per 100,000 of population per county on 21 December 2021.
+
+## Solution:
+
+### Data Setup:
+- To generate the data for task 1, the dplyr filter() function has been used to fetch all rows from IRE_Cases data-frame for the date, **"December 21, 2021"** saved in *TimeStamp* column.  
+
+- The filtered data-set is stored in *section_1* data-frame variable as follows,
+
+```{r Section 1 Data Setup, echo=TRUE, message=FALSE, warning=FALSE}
+# Filtering IRE_Cases data-frame to fetch data for 21 December 2021
+section_1 <- filter(IRE_Cases, TimeStamp=="2021-12-21")
+```
+
+### Visualisation:
+
+- A bar graph visualization is used to display the information of the number of cases per 100,000 of population per county on 21 December 2021 using data saved in *section_1* data-frame.  
+- The aesthetic used to show the quantity of number of cases contained in *ConfirmedC_Normalized* column, is **length of column** visualized using **ggplot** geometric **geom_col**.  
+- **geom_text** is used to indicate the value of each column (rounded off for readability) positioned on the bars.  
+- The counties are re-ordered on the x-axis from highest to lowest number of cases, and the coordinates are flipped to display the counties on vertical axis and the cumulative number of cases on the horizontal axis.
+
+```{r Section 1 Visualisation, echo=TRUE, message=FALSE, warning=FALSE, fig.cap="Bar plot displaying the confirmed number of covid-19 cases for all counties in Ireland on 21 December 2021, from highest cases in Monaghan to Lowest in Wicklow.", out.width='100%'}
+# Note: Code referred from Unit 3 - Section 1 Worksheet - Visualizing Amounts
+# Plotting the bar-graph for task 1
+ggplot(section_1, aes(
+      # re-ordering county names according to normalized no. of confirmed cases
+      # and plotting on x-axis
+      x=reorder(CountyName, ConfirmedC_Normalized),
+      # plotting confirmed cases per 100,000 of population on y-axis
+      y=ConfirmedC_Normalized)) +
+  # adding the columns to the plot
+  geom_col(alpha=0.85, fill='#0072B2', width=0.75) +
+  # adding text labels for rounded value of normalized no. of confirmed cases,
+  # positioned at the end of each column
+  geom_text(aes(label=round(ConfirmedC_Normalized), 
+                y=0.945*ConfirmedC_Normalized),
+                colour='#ffffff', 
+                size=2.5, 
+                vjust=0.5) +
+  # scaling the y-axis to fit the range of ConfirmedC_Normalized column
+  scale_y_continuous(limits = c(0, 18500),
+                     expand = c(0, 0),
+                     breaks = seq(0, 18500, by = 1500),
+                     name = "Covid Cases per 100,000")  +
+  # setting the plot title
+  ggtitle(
+  "No. of Covid-19 Cases in Ireland Counties per 100k of Population on December 21, 2021"
+  ) +
+  # flipping the coordinates
+  coord_flip(clip = "off") +
+  # setting the plot themes
+  theme_classic() +
+  theme(
+    axis.title = element_blank(),
+    axis.line.y = element_blank(),
+    axis.ticks.y = element_line(color = 'gray85'),
+    axis.line.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.title.x.bottom =  element_blank(),
+    axis.title.y = element_blank(),
+    axis.text.x = element_text(size = 7),
+    axis.text.y = element_text(size = 7),
+    plot.title = element_text(size = 10, color = 'grey20', hjust = 0.5),
+    panel.background = element_blank(),
+    panel.grid.major.x = element_line(size = 0.075, colour = 'gray85')
+    )
+```
+
+# Section 2: A visualisation that allows the reader to read how each county differs from the mean number of cases (per 100,000) in the country as at the 21 December 2021.
+
+## Section 2 Data Setup:
+### EXPLAIN HERE, need to improve the visualisation!!
+
+```{r Section 2 Data Setup, echo=TRUE, message=FALSE, warning=FALSE}
+# Calculating mean of the cummulative cases as on 21 December 2021
+mean_cummulative <- mean(section_1$ConfirmedC_Normalized)
+# Adding pos column to differentiate rows with values greater than or less than
+# cummulative mean
+section_2 <- section_1 %>% 
+  mutate(MeanDiff = mean_cummulative - section_1$ConfirmedC_Normalized,
+  POS = section_1$ConfirmedC_Normalized >= mean_cummulative)
+```
+
+## Section 2 Visualisation:
+### EXPLAIN HERE
+
+```{r Section 2 Visualisation, echo=TRUE, message=FALSE, warning=FALSE}
+# Referred from Unit 3 - Section 1 - Worksheet - Visualizing Amounts
+
+ggplot(section_2, aes(x = CountyName, y = MeanDiff, fill = POS)) + 
+  geom_col(position = "identity", alpha=0.8, width = 0.5) +
+  geom_hline(aes(yintercept = 0), linetype = "dashed", color='red', size=1)+
+  scale_y_continuous(limits = c(-5000, 5000),
+                     breaks = seq(-5000, 5000, by= 1000),
+                     name = "Difference in cases from mean",
+                     expand=c(0,0),
+                     sec.axis = sec_axis(~. + mean_cummulative,
+                                         breaks = seq(0, 23000, by= 1000))
+                     ) +
+  scale_fill_manual(values=c('#ff4040', '#08a04b')) +
+  coord_flip(clip = 'off') +
+  theme_classic() +
+  theme(
+    axis.title = element_blank(),
+    axis.line.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.line.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.title.y = element_blank(),
+    # axis.title.x.bottom =  element_blank(),
+    # axis.text.x.bottom =  element_blank(),
+    plot.margin = margin(6, 6, 3, 3),
+    panel.background=element_blank(),
+    panel.grid.major.x = element_line(size = 0.2, linetype = 'solid',colour = "grey88"),
+    panel.ontop = TRUE,
+    legend.position = 'none'
+  )
+
+ggplot(section_2, aes(x=MeanDiff, y=CountyName, colour = POS)) +
+  geom_segment(aes(x = 0, y = CountyName, xend = MeanDiff, yend = CountyName), 
+               size = 0.6, color = "darkgrey") +
+  geom_point(size = 2.5, alpha=0.8) +
+  geom_vline(aes(xintercept = 0), linetype = "longdash", color='red', size=1)+
+  scale_colour_manual(values= c('#ff3f34', '#08a04b'), name = "") +
+  scale_x_continuous(limits = c(-5000, 4000),
+                     breaks = seq(-5000, 4000, by= 1000),
+                     name = "Difference in cases from mean",
+                     expand=c(0,0),
+                     sec.axis = sec_axis(~. + mean_cummulative,
+                                         breaks = seq(0, 18000, by= 1000),
+                                         name = 'Cummulative No. of Covid Cases'
+                                         ))+
+  theme_classic() +
+  theme(
+    # axis.title = element_blank(),
+    axis.line.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.line.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.title.y = element_blank(),
+    # axis.title.x.bottom =  element_blank(),
+    # axis.text.x.bottom =  element_blank(),
+    plot.margin = margin(6, 6, 6, 6),
+    panel.background=element_blank(),
+    panel.grid.major.x = element_line(size=0.04, colour = "grey70"),
+    panel.ontop = TRUE,
+    legend.position = 'none'
+  )
+
+```
+
+# Section 3: A choropleth visualisation of the number of cases per 100,000  on the 21 December 2021 and on 21 December 2020. These should be placed side by side on the page and must use the same scale so that they can be directly compared.
+
+## Section 3 Data Setup for December 21, 2021:
+### MIGHT HAVE TO RESCALE
+### Add Labels if can be done properly
+### EXPLAIN HERE, need to improve the visualisation!!
+
+```{r Section 3 Data Setup 21, echo=TRUE, message=FALSE, warning=FALSE}
+section_3_2021 <- section_1
+scale_minimum<-round_any(min(section_3_2021$DailyCCase_Normalized), 10, f = floor)
+scale_maximum<- round_any(max(section_3_2021$DailyCCase_Normalized), 10, f = ceiling)
+breaks<-seq(scale_minimum-10,scale_maximum+10, by = 20)
+section_3_2021$DailyCCase_Normalized_D <- cut(section_3_2021$DailyCCase_Normalized,
+                                    breaks = breaks,
+                                    dig.lab = 5)
+nlevels<- nlevels(section_3_2021$DailyCCase_Normalized_D)
+pal <- hcl.colors(nlevels, "Reds", rev = TRUE)
+pal_desat<-desaturate(pal,amount = 0.2)
+labs <- breaks/10
+labs_plot <- paste0("(", labs[1:nlevels], "0-", labs[1:nlevels+1], "0]")
+```
+
+## Section 3 Visualisation for December 21, 2021:
+### EXPLAIN HERE
+
+```{r Section 3 Visualisation 21, echo=TRUE, message=FALSE, warning=FALSE}
+# Referred from Unit 3 - Week 6 - Worksheet - Choropleths
+plot_2021 <- ggplot(section_3_2021) + geom_sf(aes(fill = DailyCCase_Normalized_D),
+          color = "darkgrey", linetype = 1, lwd = 0.4) +
+  geom_sf_text(aes(label = CountyName), color="gray20",size=2) +
+  labs(title = "Numbers of Covid Cases on 21 December 2021",
+       subtitle = "Ireland Counties") +
+  scale_fill_manual(values = pal_desat,
+                    drop = FALSE,
+                    na.value = "grey80",
+                    label = labs_plot,
+                    guide = guide_legend(direction = "vertical",
+                                         ncol = 1,
+                                         label.position = "right")) +
+  theme_void() +
+  theme(legend.title = element_blank(), 
+        legend.text = element_text(size=6), 
+        legend.key.height = grid::unit(0.4, "cm"),
+        plot.caption = element_text(size = 7, face = "italic"),
+        plot.title = element_text(size=10),
+        plot.subtitle = element_text(size=10),
+        plot.margin = margin(3,3,6,3))
+
+```
+
+## Section 3 Data Setup for December 21, 2020:
+### EXPLAIN HERE, need to improve the visualisation!!
+
+```{r Section 3 Data Setup 20, echo=TRUE, message=FALSE, warning=FALSE}
+section_3_2020 <- filter(IRE_Cases, TimeStamp=="2020-12-21")
+scale_minimum<-round_any(min(section_3_2020$DailyCCase_Normalized), 10, f = floor)
+scale_maximum<- round_any(max(section_3_2020$DailyCCase_Normalized), 10, f = ceiling)
+breaks <- seq(scale_minimum-10,scale_maximum+10, by = 20)
+section_3_2020$DailyCCase_Normalized_D <- cut(section_3_2020$DailyCCase_Normalized,
+                                         breaks = breaks,
+                                         dig.lab = 5)
+nlevels<- nlevels(section_3_2020$DailyCCase_Normalized_D)
+pal <- hcl.colors(nlevels, "Reds", rev = TRUE)
+pal_desat<-desaturate(pal,amount = 0.2)
+labs <- breaks/10
+labs_plot <- paste0("(", labs[1:nlevels], "0-", labs[1:nlevels+1], "0]")
+
+```
+
+## Section 3 Visualisation for December 21, 2020:
+### EXPLAIN HERE
+
+```{r Section 3 Visualisation 20, echo=TRUE, message=FALSE, warning=FALSE}
+# Referred from Unit 3 - Week 6 - Worksheet - Choropleths
+plot_2020 <- ggplot(section_3_2020) + geom_sf(aes(fill = DailyCCase_Normalized_D),
+                                         color = "darkgrey", linetype = 1, lwd = 0.4) +
+  geom_sf_text(aes(label = CountyName), color="gray20",size=2) +
+  labs(title = "Numbers of Covid Cases on 21 December 2020",
+       subtitle = "Ireland Counties") +
+  scale_fill_manual(values = pal_desat,
+                    drop = FALSE,
+                    na.value = "grey80",
+                    label = labs_plot,
+                    guide = guide_legend(direction = "vertical",
+                                         ncol = 1,
+                                         label.position = "right")) +
+  theme_void() +
+  theme(legend.title = element_blank(), 
+        legend.text = element_text(size=6), 
+        legend.key.height = grid::unit(0.4, "cm"),
+        plot.caption = element_text(size = 7, face = "italic"),
+        plot.title = element_text(size=10),
+        plot.subtitle = element_text(size=10),
+        plot.margin = margin(3,3,6,3))
+
+```
+
+## Section 3 Visualisation:
+
+```{r Section 3 Visualisation, echo=TRUE, message=FALSE, warning=FALSE}
+grid.arrange(plot_2021, plot_2020, ncol=2)
+```
+
+# Section 4: A time series bar graph of the daily number of confirmed covid cases in one county in Ireland for one of the following periods:  3-month, 6 months or 1 year with a line representing the 7-day average for this period.
+
+## Section 4 Data Setup:
+
+```{r Section 4 Data Setup, echo=TRUE, message=FALSE, warning=FALSE}
+source("moving_ave.R", echo = F)
+section_4 <- IRE_Cases %>% filter(IRE_Cases$CountyName=='Wexford')
+section_4 <- filter(section_4, section_4$TimeStamp > "2021-06-20")
+section_4 <- section_4 %>% mutate(
+    case_7_day_avg = moving_ave(section_4$TimeStamp, section_4$DailyCCase, 7, center = TRUE)
+  )
+```
+
+## Section 4 Visualisation:
+
+```{r Section 4 Visualisation, echo=TRUE, message=FALSE, warning=FALSE}
+# Based on Unit 4 - Week 7 - Second worksheet Visualising Trends
+ggplot(section_4, aes(x = TimeStamp, 
+                      y = DailyCCase)) + 
+  geom_col(alpha=0.85, fill='#6CB4EE', width = 0.8, na.rm = TRUE) +
+  geom_line(aes(TimeStamp, case_7_day_avg, color = "#2a52be"), size = 1, na.rm = TRUE) +
+  scale_color_manual(
+    values = c("#2a52be")
+  ) +
+  scale_y_continuous(limits = c(0, 300),
+                     expand = c(0, 0),
+                     breaks = seq(0, 300, by = 30),
+                     name = "Daily No. Covid Cases")  +
+  scale_x_date(limits = c(ymd("2021-06-21"), ymd("2021-12-21")), 
+                     expand = c(0, 0), 
+                     date_labels="%b %y"
+                     )  +
+  ggtitle("Daily Number of Covid Cases in Wexford from 21/06/2021 to 21/12/2021") +
+  
+  theme_classic() + 
+  theme(
+    axis.title = element_blank(),
+    axis.line.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.line.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.title.y = element_blank(),
+    plot.title = element_text(size = 12, color = 'grey20', hjust=0.5),
+    plot.margin = margin(5, 6, 4, 6),
+    panel.background = element_blank(),
+    panel.grid.major.y = element_line(size = 0.2, 
+                                      linetype = 'solid',
+                                      colour = 'lightgrey'),
+    panel.ontop = TRUE,
+    legend.position = 'none'
+    )
+```
+
+# Section 5: A time series line graph that shows the cumulative number of cases per 100,000 in Galway and two other counties representing counties that have had the lowest and highest number of cases per 100,000. This time series line graph must also show the time series of all other counties in Ireland. However, the three selected counties (Galway and two other must be highlighted)
+
+## Section 5 Data Setup
+
+```{r Section 5 Data Setup, echo=TRUE, message=FALSE, warning=FALSE}
+
+# mean_cummulative_cases <- IRE_Cases %>%
+#   dplyr::group_by(TimeStamp) %>%
+#   dplyr::summarise(MeanCases = mean(ConfirmedC_Normalized,na.rm=T))
+# 
+# mean_cummulative_cases <- as.data.frame(mean_cummulative_cases)
+
+county_min_cases <- section_1$CountyName[which.min(section_1$ConfirmedC_Normalized)]
+county_max_cases <- section_1$CountyName[which.max(section_1$ConfirmedC_Normalized)]
+target_counties <- c(county_min_cases, county_max_cases, 'Galway')
+
+target_counties_data <- IRE_Cases %>% filter(IRE_Cases$CountyName %in% target_counties)
+```
+
+## Section 5 Visualisation
+
+```{r Section 5 Visualisation, echo=TRUE, message=FALSE, warning=FALSE}
+
+background_plot <- ggplot(IRE_Cases, aes(x = TimeStamp, y=ConfirmedC_Normalized)) + 
+  scale_x_date(name = "Day", breaks = "2 months", date_labels="%b %y", expand=c(0,0)) +
+  scale_y_continuous(labels = seq(from = 0, to = 18500, by=1000), 
+                     breaks = seq(from = 0, to = 18500, by=1000), 
+                     expand = c(0,0), 
+                     name = "Cummulative No. of Cases per 100k")  +
+  geom_line(aes(group = CountyName),size= 0.35, na.rm = TRUE, 
+            color="grey90", alpha =0.7, show.legend = FALSE )+
+  #mean line
+  # geom_line(data = mean_cummulative_cases, aes(x=TimeStamp, y=ConfirmedC_Normalized), 
+  #           col="red", size = 0.4, linetype="dashed", show.legend =TRUE) +
+  # this theme clears away grid lines, makes backgound white  
+  theme(panel.grid.major = element_blank(), 
+        panel.background = element_blank(), 
+        axis.line = element_blank(), 
+        axis.title.x=element_blank(), 
+        axis.text.x = element_text(  vjust = .5),
+        legend.key = element_rect(fill = NA, colour = NA, size = 0.25),
+        plot.margin = margin(14, 14, 8, 14)
+  )
+
+foreground_plot <- background_plot + 
+  geom_line(data=target_counties_data, size=1, alpha=0.85, 
+            show.legend = TRUE, (aes(x=TimeStamp, y=ConfirmedC_Normalized, 
+                                     colour=CountyName, group=CountyName))) +
+  scale_colour_manual(values=c("green4","#D55E00", "#0072b2"),
+                      name =NULL, limits = target_counties) +
+  ggtitle("Cumulative Number of Cases in Ireland Counties") +
+  theme(
+    axis.ticks.y.right = element_blank(),
+    axis.ticks.y = element_blank(),
+    # axis.ticks.x = element_blank(),
+    axis.title.y= element_blank(),
+    axis.text.y.right = element_text(colour="black", size =8),
+    legend.key = element_rect(fill = NA, colour = NA, size = 0.25),
+    legend.position = c(0.15, .85)
+  )
+
+foreground_plot
+```
+
+# Acknowledgements:
+
+Following resources were referred to perform above tasks,
+
+[1] Jack Dougherty, Ilya Ilyankou. Hands-On Data Visualization. "Normalize Your Data". Available at: https://handsondataviz.org/normalize.html
+[2] Dr. Conor Hayes. (2022). CT5100: Week 5 Worksheet - Visualising Amounts.
+
+
